@@ -1,0 +1,389 @@
+int pass1()
+{			
+	int returnVal = 1,flag = 1;	
+	int i=0;
+	char str1[20],str2[20],str3[20];		//arrays for temporary storage of parts of buf2 to check syntax
+	int j=0,k=0,l=0;						//indices for str1,2,3
+	char tempstr[80];
+	int x;
+	
+	//buff2[strlen(buff2)] = '\0';
+
+	RemoveMulSpaces();  
+	printf("\nbuff2 is:\n%s\n",buff2);
+	ConvertToLowerCase();
+	InsertWithinRange(buff2,i,i+4,tempstr);
+	if(strcmp(tempstr,"start"))				//check for start keyword
+	{
+		//printf("\nSTART keyword is missing in line 1\n");	//****check InsertIntoBuff and remove this printf	
+		InsertIntoErrorBuff(missingStart);
+		return 0;
+	}
+		
+	/*InsertWithinRange(buff2,strlen(buff2)-3,strlen(buff2)-1,tempstr);
+	if(strcmp(tempstr,"end"))
+	{
+		InsertIntoErrorBuff(missingEnd);
+		return 0;
+	}*/
+		
+
+	i = 6;						//i points to the strings after "start"
+	memset(tempstr,0,strlen(tempstr));		//clear tempstr	
+	memAddr = 0x1000;
+	
+	while(1)	
+	{
+		j=k=l=0;		
+		memset(str1,0,strlen(str1));
+		memset(str2,0,strlen(str2));
+		memset(str3,0,strlen(str3));		
+		str1[0] = str2[0] = str3[0] = '\0';	
+		
+			
+		if((buff2[i] == 'e') && (buff2[i+1] == 'n') && (buff2[i+2] == 'd'))						//Checking for END	
+		{			
+			//printf("%c%c%c is at: %d %d %d\n",buff2[i],buff2[i+1],buff2[i+2],i,i+1,i+2); 	
+			endIndex = i;				//endIndex is used in pass2		
+			break;		
+		}
+
+		
+		
+		
+		while(buff2[i] != ' ')
+		{
+			if(buff2[i] == '\n')
+			{
+				printf("\nToo few statements in line: %d.\nTerminanting the program execution\n",lineCount);
+				exit(0);	
+			}			
+			str1[j] = buff2[i++];
+			j++;
+		}
+		str1[j] = '\0';
+		i++;
+
+
+		if(buff2[i] == '\n')
+		{
+			printf("\nToo few statements in line: %d.\nTerminanting the program execution\n",lineCount);
+			exit(0);
+		}
+
+
+		while(buff2[i] != ' ')
+		{
+			if(buff2[i] == '\n')
+			{
+				str2[k] = '\0';
+				//i++;
+				break;
+			} 
+			str2[k] = buff2[i++];
+			k++;
+		}
+		str2[k] = '\0';			
+		
+		
+		
+		if(buff2[i] == ' ')
+			i++;
+		
+		while(buff2[i] != '\n')
+		{
+			str3[l] = buff2[i++];
+			l++;
+		}
+		str3[l] = '\0';
+		buff2[i++];		
+		//printf("\nline: %d\t\tmem address: %d",lineCount,memAddr);			//******
+		//printf("\nThe strings are:\n1: %s\n2: %s\n3: %s\n",str1,str2,str3);
+		lineCount++;
+		
+				
+		if(strlen(str3) == 0)
+		{
+			strcpy(str3,str2);
+			strcpy(str2,str1);
+			str1[0] = '\0';
+			/*printf("\n1 is: %s\n2 is: %s\n3 is: %s",str1,str2,str3);*/		//********To check contents of the regs
+		
+			returnVal =  Type2Syntax(str2,str3);			//1 -> no error   0 -> error(s) are present
+			if(returnVal == 0)
+				flag = 0;
+		}
+		else
+		{
+			/*printf("\n------\nThe strings have been copied.\nstr1: %s\nstr2: %s\nstr3: %s",str1,str2,str3);*/ //****print to test
+			returnVal = Type3Syntax(str1,str2,str3);	
+		if(returnVal == 0)
+			flag = 0;
+		}
+		if(!(strcmp(str2,"byte")))			//increment memAddr value by 1 if "byte", else increment by 3
+			memAddr++;
+		else
+			memAddr += 3;
+
+	}
+	
+	returnVal = CheckVarAndLabel();
+	if(returnVal == 0)
+		flag = 0;
+		
+	return flag;
+}
+	
+
+
+
+
+void ConvertToLowerCase()			//Convert contents of buff2 into lower case
+{
+	int i;
+	for(i=0;i<strlen(buff2);i++)
+	{
+		buff2[i] = tolower(buff2[i]);
+	}
+}
+
+
+
+
+int Type2Syntax(char *str2, char *str3)
+{
+	//printf("\nEntered type2Syntax\n");		//******print to test
+	char temp[20];
+	int i,j=0;
+	int tempVal = 0;				//default val a variable should be initialized to during creation	
+	unsigned int addr = 0;
+	if(SearchKeyword(str2))		
+	{
+		if(!(strcmp(str2,"clear")))			//checking for the keyword clear. clear can have only a single arg
+		{
+			if(((str3[0]=='a') || (str3[0]=='x') || (str3[0]=='l') || (str3[0]=='b') || (str3[0]=='s')) && (str3[1] == '\0'))	
+				return 1;
+			InsertIntoErrorBuff(regError);			
+			return 0;
+		}
+
+		if(str2[0] == 'j') 			//check if jump statement
+		{
+			 if(!SearchLabel(str3))		
+				CreateLabel(str3);
+			return 1;
+		}
+		
+		else
+		{
+			InsertWithinRange(str3,1,strlen(str3),temp);		
+			
+			if(str3[0] == '#') 			//check if immediate addr mode
+				{
+					if(isnum(temp))
+						return 1;
+				}
+			
+			else if(str3[0] == '@')			//check if indirect addr mode
+			{
+				//printf("\nChecking for @\n");			//***********print to test
+				if(!SearchVar(temp))				
+					CreateVar(temp);		
+				return 1;
+			}
+	
+			if(str2[strlen(str2)-1] == 'r')
+				return(CheckReg(str2,str3));
+
+			else if(isstr(str3)) 					//Checks if the variable name is specified directly as a string
+			{
+				if(!SearchVar(str3))								
+					CreateVar(str3); 			
+				return 1;
+			}
+		}
+	}
+	InsertIntoErrorBuff(invalidKeyword);
+	return 0;
+}			
+							
+int Type3Syntax(char *str1, char *str2, char *str3)
+{																		
+	//printf("\nEntered Type3Syntax\n");		
+	struct node temp;
+	if(!(SearchKeyword(str1)))
+	{	
+		if((!strcmp(str2,"byte")) || (!strcmp(str2,"word"))) 		
+		{
+			if(isnum(str3))			
+			{				
+				if(!SearchVar(str1))
+				{
+					CreateVar(str1);					
+					strcpy(globalVarStruct->val,str3);
+					globalVarStruct->addr = memAddr;
+				//printf("\nAddress of var %s is %d,%s\n",globalVarStruct->name,globalVarStruct->addr,globalVarStruct->val);
+					return 1;
+				}
+				strcpy(SearchVarStruct->val,str3);
+				SearchVarStruct->addr = memAddr;	
+				return 1;
+				
+			} 
+		}
+		
+		else if(Type2Syntax(str2, str3))				//Checking declaration of labels
+		{										
+			if(!SearchLabel(str1))
+			{	
+				CreateLabel(str1);
+				globalLabelStruct->addr = memAddr; 	
+				return 1;	
+			}
+			SearchLabelStruct->addr = memAddr;
+			return 1;
+		}
+	}
+	InsertIntoErrorBuff(invalidKeyword);
+	return 0;
+}
+	
+
+
+
+
+
+int CheckReg(char *str2, char *str3)
+{
+	char regArr[6] = "axlbs";
+	regArr[5] = '\0';
+	int i=0,flag1 = 0, flag2 = 0,j=0;
+		
+	if(!(strcmp(str2,"clear")))			//clear keyword requires only 1 reg as arg
+	{
+		if ((str3[0] == 'a')||(str3[0] == 'x')||(str3[0] == 'l')||(str3[0] == 'b')||(str3[0] == 's'))		
+			return 1;
+		else
+		{
+			InsertIntoErrorBuff(regError);			
+			return 0;
+		}
+	}		
+	
+	
+	i = 0;	
+	if(str3[1] == ',')				//checking if , seperates the two reg values
+	{
+		while(regArr[i] != '\0')
+		{
+			if(str3[0] == regArr[i])
+				flag1 = 1;
+			if(str3[2] == regArr[i++])
+				flag2 = 1;
+		}
+		if((flag1 == 1) && (flag2 == 1))
+			return 1;
+		else
+		{
+			InsertIntoErrorBuff(regError);			
+			return 0;
+		}		
+	}
+	
+	else							//no ',' is present. print error msg
+	{
+		InsertIntoErrorBuff(missingComma);
+		return 0;	
+	}
+		
+}
+
+
+int isnum(char *str3)
+{
+	int i,j=0;
+	i = strlen(str3);
+	while(i)
+	{
+		if(!isdigit(str3[j++]))
+			return 0;
+		i--;
+	}	
+	return 1;
+}
+
+int isstr(char *str)
+{
+	int i=0;
+	int flag = 1;
+	while(str[i] != '\0')
+		if(!isalpha(str[i++]))
+			flag = 0;
+	return flag;
+}
+
+
+int SearchKeyword(char *str)
+{
+	int j=0,n=1;
+	while(n <= MAX_SIZE)
+	{
+		n++;
+		if((strcmp(str,cmdTable[j++].name)) == 0)
+		{
+			//printf("\nkeyword match: %s\n",cmdTable[j-1].name);			//**********print to test
+			return 1;
+	}	}
+	return 0;
+}
+
+
+
+void RemoveMulSpaces()
+{
+	int i=0,j=1;
+	while(buff1[i] != '\0')
+	{			
+		if(buff1[i] == '\n')
+		{
+			i++;
+			continue;
+		}
+		
+		while((buff1[i] == '\t') || (buff1[i] == ' '))
+			i++;
+
+		while(buff1[i] != '\n')
+		{		
+			while((buff1[i] == ' ') || (buff1[i] == '\t'))
+			{
+				if((buff1[i+1] == ' ') || (buff1[i+1] == '\t'))
+				{
+					buff1[i+1] = ' ';
+					i++;
+					
+				}
+				else
+				{
+					buff1[i] = ' ';
+					break;
+				}
+			}			
+	
+			if(((buff1[i] == ' ') && (buff1[i+1] == '\n'))	|| ((buff1[i] == '\t') && (buff1[i+1] == '\n')))
+			{
+				i++;
+				continue;
+			}	
+	
+			buff2[buff2Index++] = buff1[i];
+			i++;
+		}
+		buff2[buff2Index++] = '\n';
+		i++;
+	}
+	buff2[buff2Index] = '\0';
+}
+
+		
+
