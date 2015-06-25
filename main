@@ -1,0 +1,57 @@
+#include<stdio.h>
+#include<string.h>
+#include<stdlib.h>
+#include<math.h>
+#include"globalvar.h"
+#include"labels.c"
+#include"variables.c"
+#include"pass1.c"
+#include"pass2.c"
+#include"utilityfunctions.c"
+
+
+int main(int argc, char* argv[])
+{
+	int size = 0;	
+	if(argc == 1 || argc > 2)		//Checks for number of args passed 
+	{
+		printf("\n\nWrong number of input files specified. Exiting the assembler.\n");
+		exit(1);
+	}
+	
+	if((fp = fopen(argv[1],"r")) == NULL)		//Checks if file opens normally
+	{
+		printf("\nError opening input file. Exiting.\n");
+		return(0);
+	} 
+	
+
+	size = fread(buff1,1,5000,fp);		//size determines the size of the buffer
+	buff1[strlen(buff1)] = '\0';
+	//printf("\nsize is: %d\n",size);
+	//printf("\nbuff1 is: %s\n", buff1);
+	if((size>=0) || (size<=5000))
+	{		
+		if(pass1())
+		{
+			pass2();			
+				
+		}								
+		
+		else
+		{
+			system("clear");			
+			printf("\nErrors are present in the file: %s \n",argv[1]);	
+			printf("\n%s\n",errorBuff);			
+		}
+		/*printf("\nvar table:\n");
+			vardisplay();
+			labdisplay();*/
+		
+	}
+
+	else
+		printf("\n\nProgram exceeds memory allocated\n\n");  
+	fclose(fp); 
+
+}
