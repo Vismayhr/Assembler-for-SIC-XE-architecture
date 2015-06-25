@@ -1,0 +1,22 @@
+start
+		lda 	#45
+		lda 	#67
+		lda 	@len	
+		clear 	a
+		clear 	l
+		addr 	a,x
+		ldx	temp
+cloop		lda	len
+		subr	x,a
+		jeq 	cloop
+rloop 		lda 	val
+		j 	rloop
+len 		word 	99
+val 		byte 	887
+temp 		byte 	77
+end
+
+
+
+
+/*Name of the file containing the SIC/XE program must be specified as arg[1] during execution*/
